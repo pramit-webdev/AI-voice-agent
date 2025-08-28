@@ -8,19 +8,23 @@ import os
 # 1. Load Whisper model once (STT)
 stt_model = whisper.load_model("small")
 
-# 2. Initialize Groq client (LLM) - use env variable
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# 2. Initialize Groq client (LLM) - from env var
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise ValueError("❌ Missing GROQ_API_KEY environment variable")
+client = Groq(api_key=GROQ_API_KEY)
 
 def voice_agent(audio_file):
     # --- Step 1: Speech-to-Text ---
-    user_text = stt_model.transcribe(audio_file)["text"]
+    result = stt_model.transcribe(audio_file)
+    user_text = result["text"].strip()
 
     # --- Step 2: LLM Response ---
     completion = client.chat.completions.create(
         model="llama3-8b-8192",
         messages=[{"role": "user", "content": user_text}]
     )
-    ai_text = completion.choices[0].message["content"]
+    ai_text = completion.choices[0].message.content.strip()
 
     # --- Step 3: Text-to-Speech ---
     tts = gTTS(ai_text)
@@ -44,6 +48,5 @@ demo = gr.Interface(
 )
 
 if __name__ == "__main__":
-    # Render assigns a PORT env var, must use 0.0.0.0
     port = int(os.environ.get("PORT", 7860))
     demo.launch(server_name="0.0.0.0", server_port=port)
